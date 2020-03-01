@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Type Ahead 👀</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <form class="search-form">
+    <input type="text" class="search" placeholder="City or State">
+    <ul class="suggestions">
+      <li>Filter for a city</li>
+      <li>or a state</li>
+    </ul>
+  </form>
+<script>
+  const throttle = (f, ms) => {
+      let timerId = null;
+      let savedCtx;
+      let savedArgs;
+
+      return function (...args) {
+        savedCtx = this;
+        savedArgs = args;
+
+        if (timerId) return;
+
+        f.apply(savedCtx, savedArgs);
+
+        timerId = setTimeout(() => {
+          f.apply(savedCtx, savedArgs);
+          timerId = null;
+        }, ms);
+      };
+  }
+
+
+  const app = (() => {
+    const ENDPOINT = 'https://gist.githubusercontent.com/Miserlou/c5cd8364bf9b2420bb29/raw/2bf258763cdddd704f8ffd3ea9a3e81d25e2c6f6/cities.json';
+    const searchField = document.querySelector('.search');
+    const suggestList = document.querySelector('.suggestions');
+
+    const loadData = async () => {
+      const resp = await fetch(ENDPOINT);
+      const data = await resp.json();
+      return data;
+    }
+
+    const renderView = (data, search) => {
+      const suggestView = data.map(d => {
+        const regex = new RegExp(search, 'gi');
+        const [cityView, stateView] = ['city', 'state'].map(
+          place => d[place].replace(regex, `<span class="hl">${search}</span>`)
+        );
+
+        return `<li>
+          <span>${cityView}, ${stateView}</span>
+          <span class="population">${d.population}</span>
+        </li>`
+      }).join('');
+
+      suggestList.innerHTML = suggestView;
+    }
+
+    const searchItems = search => {
+      loadData().then(data => {
+        const matchSearch = d => d.city.toLowerCase().includes(search) || d.state.toLowerCase().includes(search);
+        renderView(data.filter(matchSearch), search);
+      });
+    }
+    const delayedSearch = throttle(searchItems, 1000);
+
+    const bindHandlers = () => {
+      searchField.addEventListener('keyup', e => {
+        const search = e.target.value.toLowerCase();
+        delayedSearch(search);
+      });
+    };
+
+    return {
+      start: () => {
+        bindHandlers();
+      },
+    }
+  })()
+
+
+  window.onload = () => {
+    app.start();
+  }
+</script>
+</body>
+</html>
